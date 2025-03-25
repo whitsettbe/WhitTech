@@ -1,0 +1,7 @@
+# List tags for auto-completion in this file
+# Blank lines and lines starting with # will be ignored
+# Leading and trailing whitespace will be ignored
+
+banana
+bandana
+onomatopoeia
