@@ -463,7 +463,7 @@ def update():
     clearTerminal()
     print('Updating...')
     os.system('git pull')
-    print('Update complete! Please restart the program now.')
+    print('Update complete!\n\nPlease restart the program now.')
     while True:
         try:
             input()
