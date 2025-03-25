@@ -23,6 +23,7 @@ import winshell
 import shutil
 
 COMMENT_CHAR = '#'
+DEFAULT_SUGGESTION_FILE = os.path.join(os.path.split(__file__)[0], 'TemplateSuggestions.txt')
 SUGGESTION_FILE = os.path.join(os.path.split(__file__)[0], 'TagSuggestions.txt')
 
 COMPATIBLE_IMAGE_TYPES = {'.jp2', '.j2k', '.jpf', '.jpm', '.jpg2', '.j2c', '.jpc', '.jpx', '.mj2',
@@ -65,6 +66,8 @@ V
 suggestions = []
 def loadSuggestions():
     global suggestions
+    if not os.path.exists(SUGGESTION_FILE):
+        shutil.copyfile(DEFAULT_SUGGESTION_FILE, SUGGESTION_FILE)
     with open(SUGGESTION_FILE, 'r') as fin:
         lines = []
         for line in fin:
@@ -454,6 +457,19 @@ def searchTitlesAndTags():
     os.startfile(targDir)
     input('\nResults loaded!\nPress Enter to return to the main menu.')
     return
+
+# call git to update the software
+def update():
+    clearTerminal()
+    print('Updating...')
+    os.system('git pull')
+    print('Update complete! Please restart the program now.')
+    while True:
+        try:
+            input()
+        except KeyboardInterrupt:
+            pass
+    
     
 if __name__ == '__main__':
 
@@ -466,7 +482,7 @@ if __name__ == '__main__':
             print('Main Menu (use Ctrl+C to return here, Ctrl+Shift+C to copy)')
             print()
             
-            choices = [f'View/Edit Suggestions ({len(suggestions)} currently loaded)', 'Edit Titles And Subjects', 'Search Titles And Subjects', 'Exit']
+            choices = [f'View/Edit Suggestions ({len(suggestions)} currently loaded)', 'Edit Titles And Subjects', 'Search Titles And Subjects', 'Update', 'Exit']
             if lastChoice is None:
                 lastChoice = choices[-1]
             selected = inquirer.list_input('Make a selection with the arrow keys and press Enter',
@@ -479,6 +495,8 @@ if __name__ == '__main__':
                 editTitlesAndTags()
             elif selected == choices[2]:
                 searchTitlesAndTags()
+            elif selected == choices[3]:
+                update()
             else:
                 break
             
