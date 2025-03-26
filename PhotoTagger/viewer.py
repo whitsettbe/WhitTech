@@ -8,7 +8,7 @@ DESCRIPTION:    Manages popup image previewer for the user. Detects images
                     Closing the preview window terminates the program.
 
 AUTHOR:         Benjamin Whitsett
-MODIFIED:       Dec. 19, 2024
+MODIFIED:       Mar. 26, 2024
 """
 
 import matplotlib as mpl
@@ -22,7 +22,7 @@ POPUP_NAME = 'Image Preview'
 # custom pause that doesn't move the window to the front (https://stackoverflow.com/a/45734500)
 def customPltPause(interval):
     backend = plt.rcParams['backend']
-    if backend in mpl.rcsetup.interactive_bk:
+    if backend in mpl.backends.backend_registry.list_builtin(mpl.backends.BackendFilter.INTERACTIVE):
         figManager = mpl._pylab_helpers.Gcf.get_active()
         if figManager is not None:
             canvas = figManager.canvas

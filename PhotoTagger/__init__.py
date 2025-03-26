@@ -7,7 +7,7 @@ DEPEND = [
         'pillow',       # 9.5.0
         'tqdm',         # 4.65.0
         'winshell',     # 0.6
-        'matplotlib',   # 3.7.1
+        'matplotlib',   # 3.10.1
         'pyexiv2',      # 2.15.3
         'pywin32',      # 308
         ]
