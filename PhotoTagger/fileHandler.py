@@ -58,14 +58,14 @@ def closePreview():
 def isInvalidTag(tag):
     return f'Character "{TAG_DELIM_CHAR}" is not allowed in tag "{tag}"' if TAG_DELIM_CHAR in tag else ''
 
-# quietly check a file for a keyword in the title/tags
+# quietly check a file for a keyword in the title/tags, case-insensitively
 def checkForKeyword(path, keyword):
     im = pyexiv2.Image(path)
     exifData = im.read_exif()
     title = exifData.get(TITLE_LOC, '')
     tags = exifData.get(TAG_LOC, '')
     im.close()
-    return keyword in title or keyword in tags
+    return keyword.lower() in title.lower() or keyword.lower() in tags.lower()
 
 # clean a tag (removing null bytes)
 def tagClean(s):

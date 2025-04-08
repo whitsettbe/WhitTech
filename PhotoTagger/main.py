@@ -240,7 +240,7 @@ def editTitlesAndTags():
             
             # print the title and subject info
             print(f'Title: {fh.getTitle()}')
-            tagStr = ("\n"+" "*6).join(fh.getTags())
+            tagStr = ("\n"+" "*10).join(fh.getTags())
             print(f'Subjects: {tagStr}')
             print()
             choices = ['Next', 'Previous', 'Edit Title', 'Add Subject', 'Remove Subject', 'Main Menu']
@@ -329,12 +329,12 @@ def searchTitlesAndTags():
     path = cleanPath(inquirer.text('Directory to search (may drag/drop)', validate=customDirValidate))
     
     # get the keywords
-    keywords = []
+    keywords = [] #stored in lowercase
     lastChoice = None
     while True:
         clearTerminal()
         print('Search Titles And Subjects\n')
-        print('Keywords:', ('\n' + ' '*10).join(keywords))
+        print('Keywords required:', ('\n' + ' '*19).join(keywords))
         print()
         choices = ['Add Keyword', 'Remove Keyword', 'Search', 'Main Menu']
         
@@ -347,10 +347,10 @@ def searchTitlesAndTags():
                     choices = choices, default = lastChoice, validate=validate, carousel=True)
         lastChoice = selected
         
-        if selected == choices[0]: # add keyword
+        if selected == choices[0]: # add keyword (stored case-insensitively)
             
             def validate(answers, current):
-                current = current.strip()
+                current = current.strip().lower()
                 if current in keywords:
                     raise inquirer.errors.ValidationError("", reason=f'Keyword "{current}" was already listed.')
                 return True
@@ -366,12 +366,12 @@ def searchTitlesAndTags():
             
             toAdd = inquirer.text('Keyword to add (use Tab to cycle suggestions)', validate=validate, autocomplete=autocomplete).strip()
             if toAdd:
-                keywords.append(toAdd)
+                keywords.append(toAdd.lower())
                 
         elif selected == choices[1]: # remove keyword
             
             def validate(answers, current):
-                current = current.strip()
+                current = current.strip().lower()
                 if not current:
                     return True
                 if current not in keywords:
@@ -389,7 +389,7 @@ def searchTitlesAndTags():
             
             toRemove = inquirer.text('Keyword to remove (use Tab to cycle suggestions)', validate=validate, autocomplete=autocomplete).strip()
             if toRemove:
-                keywords.remove(toRemove)
+                keywords.remove(toRemove.lower())
                 
         elif selected == choices[2]: # search
             break
