@@ -88,7 +88,7 @@ def editSuggestionFile():
     print('The suggestion file will open in a new window.')
     print('Save and close the file once you are done editing it.')
     print(f'Note that any line which is blank or starts with "{COMMENT_CHAR}" will be ignored.')
-    print(f'Make sure no subjectss contain the character "{fileHandler.TAG_DELIM_CHAR}".')
+    print(f'Make sure no subjects contain the character "{fileHandler.TAG_DELIM_CHAR}".')
     
     proc = subprocess.Popen(['notepad', SUGGESTION_FILE], shell=True)# WINDOWS
     while proc.poll() is None:
