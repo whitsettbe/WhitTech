@@ -60,7 +60,10 @@ def isInvalidTag(tag):
 
 # quietly check a file for a keyword in the title/tags, case-insensitively
 def checkForKeyword(path, keyword):
-    im = pyexiv2.Image(path)
+    try:
+        im = pyexiv2.Image(path)
+    except: # failed to open
+        return False
     exifData = im.read_exif()
     title = exifData.get(TITLE_LOC, '')
     tags = exifData.get(TAG_LOC, '')

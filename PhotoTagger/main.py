@@ -102,7 +102,7 @@ def editSuggestionFile():
     input('\nPress Enter to return to the main menu.')
     return
 
-# recursively get paths to all subfiles
+# recursively get paths to all subfiles, checking the integrity of images with bad extensions
 runningSize = 0
 def getSubimages(path, strict=False, resetCounter=True):
     global runningSize
