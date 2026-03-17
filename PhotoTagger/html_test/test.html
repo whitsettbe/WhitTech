@@ -1,0 +1,189 @@
+<html>
+    <head>
+        <title>Test</title>
+        <script>
+            DATA_STRING = `
+a
+	b
+		banana.jpg	banana	fruit
+		apple.webp	apple	fruit
+		grapes.jpg	grapes	fruit
+	c
+	elephant.avif	elephant	elephant; dog
+            `
+
+			class HierarchyItem
+			{
+				constructor(parent, name)
+				{
+					this.parent = parent;
+					this.name = name;
+				}
+
+				getPath()
+				{
+					const path = [];
+					let current = this;
+					
+					while (current)
+					{
+						path.push(current.name);
+						current = current.parent;
+					}
+					
+					return path.reverse().join('/');
+				}
+			}
+			
+			class File extends HierarchyItem
+			{
+				constructor(parent, identifier)
+				{
+					const parts = identifier.split('\t');
+					
+					const name = parts[0];
+					const title = parts[1] || '';
+					const tags = parts[2]?.split(';').map(tag => tag.trim()) || [];
+
+					super(parent, name);
+					this.title = title;
+					this.tags = tags;
+				}
+			}
+
+            class Directory extends HierarchyItem
+			{
+				constructor(parent, name)
+				{
+					super(parent, name);
+					this.directories = [];
+					this.files = [];
+				}
+			}
+
+			// extract file hierarchy from the data string, returning the root directory object
+			function parseData(dataString)
+			{
+				const lines = dataString.trim().split('\n');
+				const root = new Directory(null, '.'); // root is the local directory
+				const stack = [root];
+				
+				for (const line of lines)
+				{
+					const indentLevel = line.search(/[^\t]/); // first non-tab character index
+					const identifier = line.trim();
+					
+					while (stack.length > indentLevel + 1) // until the parent is the last item in the stack
+					{
+						stack.pop();
+					}
+					
+					const parent = stack[stack.length - 1];
+					
+					if (identifier.includes('\t')) // tabs separate file name, title, and tags
+					{
+						parent.files.push(new File(parent, identifier));
+					}
+					else
+					{
+						const dir = new Directory(parent, identifier);
+						parent.directories.push(dir);
+						stack.push(dir);
+					}
+				}
+				
+				return root;
+			}
+
+			const ROOT = parseData(DATA_STRING);
+			console.log(ROOT);
+        
+        </script>
+    </head>
+    <body>
+		<table style="width:100%">
+			<tr style="width:100%">
+				<td style="width:50%; vertical-align:top">
+					<div><button onclick="dirnav(-1)">▲</button>&emsp;Path:&ensp;<span id="current-path">loading</span></div>
+					<hr>
+					<div id="directories">
+						<!-- Directory list will be populated here -->
+						<!-- Example: <p><button onclick="dirnav(0)">▼</button>&emsp;Directory Name</p> -->
+					</div>
+					<hr>
+					<div id="files">
+						<!-- File list will be populated here -->
+						<!-- Example: <p><button onclick="filenav(0)">▣</button>&emsp;File Name</p> -->
+					</div>
+				</td>
+				<td style="width:50%; vertical-align:top">
+					<div id="file-info">
+						Name: <span id="file-name">[select an image]</span></br>
+						Title: <span id="file-title">[select an image]</span></br>
+						Tags: <span id="file-tags">[select an image]</span></br>
+						<img id="file-preview" src="" alt="File preview"
+								style="max-width:100%; max-height:85vh; display:none;">
+					</div>
+				</td>
+			</tr>
+		</table>
+    </body>
+	<script>
+		let currentDir = ROOT;
+		const pathElement = document.getElementById('current-path');
+		const dirElement = document.getElementById('directories');
+		const fileElement = document.getElementById('files');
+
+		function updateUI()
+		{
+			// Set the path at the top of the page
+			pathElement.textContent = currentDir.getPath() + "/";
+
+			// Set the directory list
+			dirElement.innerHTML = 'Subfolders:</br>';
+			currentDir.directories.forEach((dir, index) =>
+			{
+				const dirItem = document.createElement('p');
+				dirItem.innerHTML = `<button onclick="dirnav(${index})">▼</button>&emsp;${dir.name}`;
+				dirElement.appendChild(dirItem);
+			});
+
+			// Set the file list
+			fileElement.innerHTML = 'Files:</br>';
+			currentDir.files.forEach((file, index) =>
+			{
+				const fileItem = document.createElement('p');
+				fileItem.innerHTML = `<button onclick="filenav(${index})">▣</button>&emsp;${file.name}`;
+				fileElement.appendChild(fileItem);
+			});
+		}
+
+		function dirnav(index)
+		{
+			if (index === -1 && currentDir.parent)
+			{
+				currentDir = currentDir.parent;
+			}
+			else if (index >= 0 && index < currentDir.directories.length)
+			{
+				currentDir = currentDir.directories[index];
+			}
+			updateUI();
+		}
+
+		function filenav(index)
+		{
+			if (index >= 0 && index < currentDir.files.length)
+			{
+				const file = currentDir.files[index];
+				document.getElementById('file-name').textContent = file.name;
+				document.getElementById('file-title').textContent = file.title;
+				document.getElementById('file-tags').textContent = file.tags.join('; ') + (file.tags.length > 0 ? ';' : '');
+				document.getElementById('file-preview').src = file.getPath();
+				document.getElementById('file-preview').style.display = 'block';
+			}
+		}
+
+		updateUI();
+	</script>
+</html>
