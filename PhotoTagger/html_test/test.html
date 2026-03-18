@@ -1,14 +1,121 @@
 <html>
     <head>
         <title>Test</title>
+		<style>
+			#layout-grid {
+				display: grid;
+				grid-template-columns: 1fr 1.5fr 1.5fr 1fr;
+				grid-template-areas:
+					"explorer explorer search search"
+					"suggestions suggestions suggestions suggestions"
+					"properties viewer viewer results";
+				border: 1px solid black;
+			}
+
+			.layout-grid-item {
+				padding: 10px;
+				border: 1px solid black;
+				box-sizing: border-box;
+				overflow-y: auto;
+			}
+
+			.filter-cell {
+				border: 1px solid black;
+				padding: 5px;
+				margin: 0px;
+				border-radius: 5px;
+				background-color: white;
+				
+				display: grid;
+				grid-template-columns: 0fr auto;
+				grid-template-areas:
+					"info children";
+			}
+
+			.filter-info {
+				grid-area: info;
+				margin-right: 5px;
+
+				display: grid;
+				align-items: center;
+			}
+
+			.filter-children {
+				grid-area: children;
+
+				display: grid;
+				grid-template-columns: 1fr;
+				grid-auto-rows: auto;
+			}
+
+
+		</style>
         <script>
-            DATA_STRING = `
+            
+        
+        </script>
+    </head>
+    <body>
+		<div id="layout-grid">
+			<div class="layout-grid-item" style="background-color: lightblue; grid-area: explorer; height: 50vh;">
+				<h2>File Explorer</h2>
+				<div>Current location:&ensp;<span id="current-path">loading</span><br>
+					<button onclick="dirnav(-1)">▲ Back</button></div>
+				<hr>
+				<div id="directories">
+					<!-- Directory list will be populated here -->
+					<!-- Example: <p><button onclick="dirnav(0)">▼</button>&emsp;Directory Name</p> -->
+				</div>
+				<hr>
+				<div id="files">
+					<!-- File list will be populated here -->
+					<!-- Example: <p><button onclick="filenav(0)">▣</button>&emsp;File Name</p> -->
+				</div>
+			</div>
+			<div class="layout-grid-item" style="background-color: lightgreen; grid-area: search;">
+				<h2>Search</h2>
+				<div id="search-filter">
+					<!-- Search filter UI will go here -->
+				</div>
+			</div>
+			<div class="layout-grid-item" style="background-color: lightcoral; grid-area: suggestions; height: 3em;">
+				View Keyword Suggestions
+			</div>
+			<div class="layout-grid-item" style="background-color: lightyellow; grid-area: properties; height: 85vh;">
+				Name: <span id="file-name">[select an image]</span></br>
+				Title: <span id="file-title">[select an image]</span></br>
+				Tags: <span id="file-tags">[select an image]</span></br>
+			</div>
+			<div class="layout-grid-item" style="background-color: lightgray; grid-area: viewer;">
+				<img id="file-preview" src="" alt="File preview"
+						style="max-width:100%; max-height:80vh; display:none;">
+			</div>
+			<div class="layout-grid-item" style="background-color: lightpink; grid-area: results;">
+				<h2>Results</h2>
+			</div>
+		</div>
+
+    </body>
+	<!-- initialization -->
+	<script>
+		DATA_STRING = `
 a
 	b
 		banana.jpg	banana	fruit
 		apple.webp	apple	fruit
 		grapes.jpg	grapes	fruit
 	c
+		z
+		y
+		x
+		w
+		v
+		u
+		t
+		s
+		r
+		q
+		p
 	elephant.avif	elephant	elephant; dog
             `
 
@@ -97,37 +204,136 @@ a
 
 			const ROOT = parseData(DATA_STRING);
 			console.log(ROOT);
-        
-        </script>
-    </head>
-    <body>
-		<table style="width:100%">
-			<tr style="width:100%">
-				<td style="width:50%; vertical-align:top">
-					<div><button onclick="dirnav(-1)">▲</button>&emsp;Path:&ensp;<span id="current-path">loading</span></div>
-					<hr>
-					<div id="directories">
-						<!-- Directory list will be populated here -->
-						<!-- Example: <p><button onclick="dirnav(0)">▼</button>&emsp;Directory Name</p> -->
-					</div>
-					<hr>
-					<div id="files">
-						<!-- File list will be populated here -->
-						<!-- Example: <p><button onclick="filenav(0)">▣</button>&emsp;File Name</p> -->
-					</div>
-				</td>
-				<td style="width:50%; vertical-align:top">
-					<div id="file-info">
-						Name: <span id="file-name">[select an image]</span></br>
-						Title: <span id="file-title">[select an image]</span></br>
-						Tags: <span id="file-tags">[select an image]</span></br>
-						<img id="file-preview" src="" alt="File preview"
-								style="max-width:100%; max-height:85vh; display:none;">
-					</div>
-				</td>
-			</tr>
-		</table>
-    </body>
+	</script>
+
+	<!-- search filtering -->
+	<script>
+		class FilterNode
+		{
+			// creates a new leaf filter node (text mode) with the indicated parent
+			constructor(parent)
+			{
+				this.parent = parent;
+				this.children = [];
+				this.text = "";
+				this.operator = null; // only used if not a text node
+			}
+
+			// returns true if this node is a text node (i.e. a leaf)
+			isText()
+			{
+				return this.text !== null;
+			}
+
+			// sets the text of this node and clears its children (i.e. makes it a leaf)
+			// (returns self)
+			setText(text)
+			{
+				this.text = text;
+				this.children = [];
+				this.operator = null;
+				return this;
+			}
+
+			// sets the operator of this node and clears its text (i.e. makes it a non-leaf)
+			// (automatically adds a default child if there are no children, and restricts to one child if operator is 'NOT')
+			setOperator(operator = "AND")
+			{
+				if (operator !== "AND" && operator !== "OR" && operator !== "NOT")
+				{
+					throw new Error("Invalid operator: " + operator);
+				}
+
+				this.text = null;
+				this.operator = operator; // e.g. 'AND', 'OR', 'NOT'
+				if (this.children.length > 1 && operator === "NOT")
+				{
+					this.children = [this.children[0]]; // keep only the first child if operator is 'NOT'
+				}
+				else if (this.children.length === 0)
+				{
+					this.children.push(new FilterNode(this, "")); // add a default child if there are none
+				}
+
+				return this;
+			}
+
+			// adds a child node with the given text and returns it (requires not a text node)
+			// (restricted to one child if operator is 'NOT')
+			addChild(text = null)
+			{
+				if (this.isText())
+				{
+					throw new Error("Cannot add child to a text node");
+				}
+				if (this.operator === "NOT" && this.children.length >= 1)
+				{
+					throw new Error("Cannot add more than one child to a NOT node");
+				}
+				const child = new FilterNode(this, text);
+				this.children.push(child);
+				return child;
+			}
+
+			// removes this node from its parent's children (if it has a parent)
+			removeSelf()
+			{
+				if (this.parent)
+				{
+					const index = this.parent.children.indexOf(this);
+					if (index !== -1)
+					{
+						this.parent.children.splice(index, 1);
+					}
+				}
+			}
+
+			// recursively retrieves the node at the given indices path (e.g. [0, 1] for first child's second child),
+			// or null if any index is out of bounds
+			getRecursive(indices)
+			{
+				var target = this;
+				for (const index of indices)
+				{
+					if (index >= 0 && index < target.children.length)
+					{
+						target = target.children[index];
+					}
+					else
+					{
+						return null;
+					}
+				}
+				return target;
+			}
+
+			// return html representation of this node and its children recursively, for UI
+			render()
+			{
+				if (this.isText())
+				{
+					return `<div class="filter-cell">${this.text}</div>`;
+				}
+				else
+				{
+					const infoHTML = `<div class="filter-info">${this.operator}</div>`;
+					const childrenHTML =
+						`<div class="filter-children">${this.children.map(child => child.render()).join(`\n`)}</div>`;
+					return `<div class="filter-cell">${infoHTML}\n${childrenHTML}</div>`;
+				}
+			}
+		}
+
+		// example usage:
+		const rootFilter = new FilterNode("");
+		rootFilter.setOperator("AND").children[0].setText("hello");
+		rootFilter.addChild().setText("world");
+		rootFilter.addChild().setOperator("NOT").children[0].setText("foo");
+
+		document.getElementById("search-filter").innerHTML = rootFilter.render();
+	</script>
+
+	<!-- UI Logic -->
 	<script>
 		let currentDir = ROOT;
 		const pathElement = document.getElementById('current-path');
@@ -140,21 +346,25 @@ a
 			pathElement.textContent = currentDir.getPath() + "/";
 
 			// Set the directory list
-			dirElement.innerHTML = 'Subfolders:</br>';
+			dirElement.innerHTML = (currentDir.directories.length ? 'Subfolders (click to open):</br>' : '');
 			currentDir.directories.forEach((dir, index) =>
 			{
-				const dirItem = document.createElement('p');
-				dirItem.innerHTML = `<button onclick="dirnav(${index})">▼</button>&emsp;${dir.name}`;
-				dirElement.appendChild(dirItem);
+				const button = document.createElement('button');
+				button.onclick = (() => dirnav(index));
+				button.innerHTML = dir.name;
+				dirElement.appendChild(button);
+				dirElement.appendChild(document.createElement('br'));
 			});
 
 			// Set the file list
-			fileElement.innerHTML = 'Files:</br>';
+			fileElement.innerHTML = (currentDir.files.length ? 'Images (click to view):</br>' : '');
 			currentDir.files.forEach((file, index) =>
 			{
-				const fileItem = document.createElement('p');
-				fileItem.innerHTML = `<button onclick="filenav(${index})">▣</button>&emsp;${file.name}`;
-				fileElement.appendChild(fileItem);
+				const button = document.createElement('button');
+				button.onclick = (() => filenav(index));
+				button.innerHTML = file.name;
+				fileElement.appendChild(button);
+				fileElement.appendChild(document.createElement('br'));
 			});
 		}
 
