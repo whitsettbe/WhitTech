@@ -1,12 +1,13 @@
+<!DOCTYPE html>
 <html>
     <head>
-        <title>Test</title>
+        <title>Photo Viewer</title>
 		<style>
 			#layout-grid {
 				display: grid;
 				grid-template-columns: 1fr 1.5fr 1.5fr 1fr;
 				grid-template-areas:
-					"explorer explorer search search"
+					"search search explorer explorer"
 					"suggestions suggestions suggestions suggestions"
 					"results viewer viewer properties";
 				border: 1px solid black;
@@ -21,7 +22,7 @@
 				border: 1px solid black;
 				box-sizing: border-box;
 				overflow-y: auto;
-				background-color: lightblue;
+				background-color: lightgray;
 			}
 
 			.filter-cell {
@@ -31,6 +32,8 @@
 				border-radius: 5px;
 				background-color: white;
 				width: max-content;
+
+				font-weight: bold;
 				
 				display: grid;
 				grid-template-columns: 0fr auto;
@@ -50,6 +53,11 @@
 				width: max-content;
 			}
 
+			.filter-info-inner select {
+				font-size: 100%;
+				font-weight: bold;
+			}
+
 			.filter-children {
 				grid-area: children;
 
@@ -62,6 +70,36 @@
 				width: max-content;
 			}
 
+			#keyword-suggestion-list {
+				columns: 3;
+			}
+
+			#viewer-box {
+				display: flex;
+				flex-direction: column;
+				align-items: center;
+				justify-content: center;
+			}
+
+			.alert {
+				color: red;
+				font-weight: bold;
+			}
+
+			.detail-header {
+				font-weight: bold;
+			}
+
+			.highlighted {
+				outline: 0.5em solid gray;
+				margin: 0.5em;
+				display: inline-block;
+				width: max-content;
+			}
+
+			.basic-oplabel {
+				width: 4em;
+			}
 
 		</style>
         <script>
@@ -71,45 +109,69 @@
     </head>
     <body>
 		<div id="layout-grid">
-			<div class="layout-grid-item" style="grid-area: explorer; height: 50vh;">
+			<div class="layout-grid-item"
+					style="grid-area: search; height: 70vh; background-color: hsl(205, 100%, 80%);">
+				<h2>Search Photos</h2>
+				<p class="alert">Not sure what to search for? Click
+					<button onclick="document.getElementById('keyword-box').style.display = 'block';
+							document.getElementById('keyword-box').scrollIntoView({behavior: 'smooth', block: 'nearest' });">here</button>
+				to see keyword suggestions.
+				</p>
+				<label><input type="checkbox" id="advanced-toggle" onclick="updateFilterUI()" /> Advanced Mode</label>
+				<div id="search-filter">
+					<!-- Search filter UI will go here -->
+				</div>
+				<button onclick="search()">Search in this folder</button>
+				<p>
+					<small>Tip: use "*" to match any number of characters; e.g. "ski*" matches "ski" and "skiing"</small>
+				</p>
+			</div>
+			<div id="explorer-box" class="layout-grid-item"
+					style="grid-area: explorer; height: 70vh; background-color: hsl(55 100% 80%);">
 				<h2>File Explorer</h2>
-				<div>Current location:&ensp;<span id="current-path">loading</span><br>
+				<div><span class="detail-header">Current location:</span>&ensp;<code id="current-path">loading...</code><br>
 					<button onclick="dirnav(-1)">▲ Back</button></div>
 				<hr>
+				<span class="detail-header">Subfolders:</span>
 				<div id="directories">
 					<!-- Directory list will be populated here -->
 					<!-- Example: <p><button onclick="dirnav(0)">▼</button>&emsp;Directory Name</p> -->
 				</div>
 				<hr>
+				<span class="detail-header">Image files:</span>
 				<div id="files">
 					<!-- File list will be populated here -->
 					<!-- Example: <p><button onclick="filenav(0)">▣</button>&emsp;File Name</p> -->
 				</div>
 			</div>
-			<div class="layout-grid-item" style="grid-area: search; height: 50vh;">
-				<h2>Search</h2>
-				<div id="search-filter">
-					<!-- Search filter UI will go here -->
-				</div>
-				<button onclick="search()">Search in this folder</button>
-				<br><br>
-				<small>Tip: use "*" to match any number of characters, e.g. "ski*" matches "ski" and "skiing"</small>
+			<div id="keyword-box" class="layout-grid-item"
+					style="grid-area: suggestions; height: 30vh; display: none; background-color: hsl(0, 0%, 90%);">
+				<h3>Keyword Suggestions <button onclick="document.getElementById('keyword-box').style.display = 'none';">Hide</button></h3>
+				The following keywords appear in tags of cataloged images, and may be useful for searching:
+				<ul id="keyword-suggestion-list"></ul>
+				
 			</div>
-			<div class="layout-grid-item" style="grid-area: suggestions; height: 3em;">
-				View Keyword Suggestions
-			</div>
-			<div class="layout-grid-item" style="grid-area: results;">
+			<div id="results-box" class="layout-grid-item"
+					style="grid-area: results; background-color: hsl(120, 100%, 80%);">
 				<h2>Results</h2>
+				<a href="" id="results-download" download="search-result-paths.txt" style="display: none;">Download result file paths</a>
+				<hr>
 				<div id="results-container"></div>
 			</div>
-			<div class="layout-grid-item" style="grid-area: viewer;">
+			<div id="viewer-box" class="layout-grid-item"
+				style="grid-area: viewer; background-color: hsl(0, 0%, 20%);">
 				<img id="file-preview" src="" alt="File preview"
 						style="max-width:100%; max-height:80vh; display:none;">
+				<h2 id="pre-message" style="color: white; text-align: center;">Search for and select an image to view it here.<br><br> You may also find images in the file explorer.</h2>
 			</div>
-			<div class="layout-grid-item" style="grid-area: properties; height: 85vh;">
-				Name: <span id="file-name">[select an image]</span></br>
-				Title: <span id="file-title">[select an image]</span></br>
-				Tags: <span id="file-tags">[select an image]</span></br>
+			<div class="layout-grid-item" style="grid-area: properties; height: 85vh; background-color: hsl(0, 100%, 80%);">
+				<h3>File Properties</h3>
+				<hr>
+				<p><span class="detail-header">File name:</span> <code id="file-name">[select an image]</code></p>
+				<p><span class="detail-header">Title:</span> <span id="file-title"></span></p>
+				<hr>
+				<span class="detail-header">Tags:</span>
+				<ul id="file-tags"></ul></br>
 			</div>
 		</div>
 
@@ -137,117 +199,161 @@ a
 	elephant.avif	elephant	elephant; dog
             `
 
-			class HierarchyItem
+		class HierarchyItem
+		{
+			constructor(parent, name)
 			{
-				constructor(parent, name)
-				{
-					this.parent = parent;
-					this.name = name;
-				}
+				this.parent = parent;
+				this.name = name;
+			}
 
-				getPath()
+			getPath()
+			{
+				const path = [];
+				let current = this;
+				
+				while (current)
 				{
-					const path = [];
-					let current = this;
-					
-					while (current)
+					path.push(current.name);
+					current = current.parent;
+				}
+				
+				return path.reverse().join('/');
+			}
+		}
+		
+		class File extends HierarchyItem
+		{
+			constructor(parent, identifier)
+			{
+				const parts = identifier.split('\t');
+				
+				const name = parts[0];
+				const title = parts[1] || '';
+				const tags = parts[2]?.split(';').map(tag => tag.trim()) || [];
+
+				super(parent, name);
+				this.title = title;
+				this.tags = tags;
+			}
+		}
+
+		class Directory extends HierarchyItem
+		{
+			constructor(parent, name)
+			{
+				super(parent, name);
+				this.directories = [];
+				this.files = [];
+			}
+
+			// find all files in this directory and subdirectories that satisfy the filter node
+			// and return them as a flat list
+			search(filterNode)
+			{
+				let results = [];
+				
+				for (const file of this.files)
+				{
+					if (filterNode.evaluate(file.title, file.tags))
 					{
-						path.push(current.name);
-						current = current.parent;
+						results.push(file);
 					}
-					
-					return path.reverse().join('/');
+				}
+				
+				for (const dir of this.directories)
+				{
+					results = results.concat(dir.search(filterNode));
+				}
+				
+				return results;
+			}
+		}
+
+		// extract file hierarchy from the data string, returning the root directory object
+		function parseData(dataString)
+		{
+			const lines = dataString.trim().split('\n');
+			const root = new Directory(null, '.'); // root is the local directory
+			const stack = [root];
+			
+			for (const line of lines)
+			{
+				const indentLevel = line.search(/[^\t]/); // first non-tab character index
+				const identifier = line.trim();
+				
+				while (stack.length > indentLevel + 1) // until the parent is the last item in the stack
+				{
+					stack.pop();
+				}
+				
+				const parent = stack[stack.length - 1];
+				
+				if (identifier.includes('\t')) // tabs separate file name, title, and tags
+				{
+					parent.files.push(new File(parent, identifier));
+				}
+				else
+				{
+					const dir = new Directory(parent, identifier);
+					parent.directories.push(dir);
+					stack.push(dir);
 				}
 			}
 			
-			class File extends HierarchyItem
-			{
-				constructor(parent, identifier)
-				{
-					const parts = identifier.split('\t');
-					
-					const name = parts[0];
-					const title = parts[1] || '';
-					const tags = parts[2]?.split(';').map(tag => tag.trim()) || [];
+			return root;
+		}
 
-					super(parent, name);
-					this.title = title;
-					this.tags = tags;
+		const ROOT = parseData(DATA_STRING);
+		console.log(ROOT);
+
+		// get a list of all file tags in the hierarchy
+		function getAllTags(directory = ROOT, tags = new Set())
+		{
+			// add tags from files in this directory
+			for (const file of directory.files)
+			{
+				for (const tag of file.tags)
+				{
+					tags.add(tag);
 				}
 			}
 
-            class Directory extends HierarchyItem
+			// recursively collect tags from subdirectories
+			for (const dir of directory.directories)
 			{
-				constructor(parent, name)
-				{
-					super(parent, name);
-					this.directories = [];
-					this.files = [];
-				}
-
-				// find all files in this directory and subdirectories that satisfy the filter node
-				// and return them as a flat list
-				search(filterNode)
-				{
-					let results = [];
-					
-					for (const file of this.files)
-					{
-						if (filterNode.evaluate(file.title, file.tags))
-						{
-							results.push(file);
-						}
-					}
-					
-					for (const dir of this.directories)
-					{
-						results = results.concat(dir.search(filterNode));
-					}
-					
-					return results;
-				}
+				getAllTags(dir, tags);
 			}
 
-			// extract file hierarchy from the data string, returning the root directory object
-			function parseData(dataString)
+			// convert set to sorted array and return
+			if (directory === ROOT)
 			{
-				const lines = dataString.trim().split('\n');
-				const root = new Directory(null, '.'); // root is the local directory
-				const stack = [root];
-				
-				for (const line of lines)
-				{
-					const indentLevel = line.search(/[^\t]/); // first non-tab character index
-					const identifier = line.trim();
-					
-					while (stack.length > indentLevel + 1) // until the parent is the last item in the stack
-					{
-						stack.pop();
-					}
-					
-					const parent = stack[stack.length - 1];
-					
-					if (identifier.includes('\t')) // tabs separate file name, title, and tags
-					{
-						parent.files.push(new File(parent, identifier));
-					}
-					else
-					{
-						const dir = new Directory(parent, identifier);
-						parent.directories.push(dir);
-						stack.push(dir);
-					}
-				}
-				
-				return root;
+				return Array.from(tags).sort();
 			}
+			else
+			{
+				return tags;
+			}
+		}
 
-			const ROOT = parseData(DATA_STRING);
-			console.log(ROOT);
+		// load tags into the keyword suggestions box
+		const allTags = getAllTags();
+		const suggestionList = document.getElementById("keyword-suggestion-list");
+		for (const tag of allTags)
+		{
+			const li = document.createElement('li');
+			li.textContent = tag;
+			suggestionList.appendChild(li);
+		}
 	</script>
 
 	<!-- search filtering -->
 	<script>
+		function isAdvancedMode()
+		{
+			return document.getElementById("advanced-toggle").checked;
+		}
+
 		class FilterNode
 		{
 			// creates a new leaf filter node (text mode) with the indicated parent
@@ -257,6 +363,14 @@ a
 				this.children = [];
 				this.text = "";
 				this.operator = null; // only used if not a text node
+				this.advancedOnly = false; // if true, this node has minimal UI presence in non-advanced mode
+			}
+
+			// set whether this node should only be visible only in advanced mode (returns self)
+			setAdvancedOnly(advancedOnly = true)
+			{
+				this.advancedOnly = advancedOnly;
+				return this;
 			}
 
 			// returns true if this node is a text node (i.e. a leaf)
@@ -269,6 +383,12 @@ a
 			// (returns self)
 			setText(text)
 			{
+				// override if resetting an operator - inherit from its child
+				if (this.operator && this.children.length > 0)
+				{
+					text = this.children[0].text;
+				}
+
 				this.text = text;
 				this.children = [];
 				this.operator = null;
@@ -276,16 +396,17 @@ a
 			}
 
 			// sets the operator of this node and clears its text (i.e. makes it a non-leaf)
-			// (automatically adds children if there are noned, and restricts to one child if operator is 'NOT')
+			// (automatically adds child if there are none, and restricts to one child if operator is 'NOT')
 			setOperator(operator = "AND")
 			{
-				if (operator !== "AND" && operator !== "OR" && operator !== "NOT")
+				if (operator !== "AND" && operator !== "OR" && operator !== "NOT" && operator != "NOR")
 				{
 					throw new Error("Invalid operator: " + operator);
 				}
 
+				let oldText = this.text || "";
 				this.text = null;
-				this.operator = operator; // e.g. 'AND', 'OR', 'NOT'
+				this.operator = operator; // e.g. 'AND', 'OR', 'NOT', 'NOR'
 				if (operator === "NOT")
 				{
 					if (this.children.length > 1)
@@ -294,14 +415,16 @@ a
 					}
 					else if (this.children.length == 0)
 					{
-						this.children.push(new FilterNode(this, ""));
+						this.children.push(new FilterNode(this));
+						this.children[0].setText(oldText);
 					}
 				}
 				else
 				{
-					while (this.children.length < 2)
+					if (this.children.length == 0)
 					{
-						this.children.push(new FilterNode(this, ""));
+						this.children.push(new FilterNode(this));
+						this.children[0].setText(oldText);
 					}
 				}
 
@@ -310,7 +433,7 @@ a
 
 			// adds a child node with the given text and returns it (requires not a text node)
 			// (restricted to one child if operator is 'NOT')
-			addChild(text = null)
+			addTextChild(text = "")
 			{
 				if (this.isText())
 				{
@@ -401,7 +524,7 @@ a
 					else
 					{
 						result = allKeygroups.some(group => filterKeywords.every(
-								keyword => RegExp(`^${keyword.replace('*', '.*')}$`).test(group)
+								keyword => RegExp(`^${keyword.replaceAll('*', '.*')}$`).test(group)
 							)) ? 1 : 0;
 					}
 				}
@@ -423,7 +546,7 @@ a
 							}
 						}
 					}
-					else if (this.operator === "OR") // supremum of children's results (shortcut at 1)
+					else if (this.operator === "OR" || this.operator === "NOR") // supremum of children's results (shortcut at 1)
 					{
 						result = 0;
 						for (const child of this.children)
@@ -437,6 +560,12 @@ a
 									break;
 								}
 							}
+						}
+
+						// if operator is NOR, take complement of the supremum result
+						if (this.operator === "NOR")
+						{
+							result = 1 - result;
 						}
 					}
 					else if (this.operator === "NOT") // complement of the child result
@@ -462,17 +591,19 @@ a
 					`<button onclick="${address}.removeSelf(); updateFilterUI();">- Delete</button>`
 					: `<span></span>`
 				);
-				const modeChoice =
-				`${deletionButton}<br>
-				<label>
+				const modeChoice = (!isAdvancedMode() && this.parent && this.parent.advancedOnly ?
+				`` : `${deletionButton}<br>`)
+				+
+				(!isAdvancedMode() ? `` :
+				`<label>
 					<input type="radio" name="mode-${dashedIndices}" onchange="${
 					address}.setText(''); updateFilterUI();" ${
 					this.isText() ? "checked" : ""}>Text
 				</label>
 				<label><input type="radio" name="mode-${dashedIndices}" onchange="${
 					address}.setOperator('AND'); updateFilterUI();" ${
-					!this.isText() ? "checked" : ""}>AND/OR/NOT
-				</label><br>`;
+					!this.isText() ? "checked" : ""}>All/Any/None
+				</label><br>`);
 
 				if (this.isText())
 				{
@@ -487,21 +618,25 @@ a
 				}
 				else
 				{
-					const operatorSelect =
-					`<select onchange="${
+					const operatorSelect = !isAdvancedMode() ?
+					`<div class="basic-oplabel">${
+						{"AND": "All of", "OR": "Any of", "NOR": "None of", "NOT": "Not"}[this.operator]}</div>`
+					:
+					`<select name="logic" onchange="${
 						address}.setOperator(this.value); updateFilterUI();">
-						<option value="AND" ${this.operator === "AND" ? "selected" : ""}>AND</option>
-						<option value="OR" ${this.operator === "OR" ? "selected" : ""}>OR</option>
-						<option value="NOT" ${this.operator === "NOT" ? "selected" : ""}>NOT</option>
+						<option value="AND" ${this.operator === "AND" ? "selected" : ""}>All of</option>
+						<option value="OR" ${this.operator === "OR" ? "selected" : ""}>Any of</option>
+						<option value="NOR" ${this.operator === "NOR" ? "selected" : ""}>None of</option>
 					</select>`;
-					const infoHTML =
+						// <option value="NOT" ${this.operator === "NOT" ? "selected" : ""}>Not</option>
+					const infoHTML = !isAdvancedMode() && this.advancedOnly ? `` :
 					`<div class="filter-info-outer">
 						<div class="filter-info-inner">${modeChoice}${operatorSelect}</div>
 					</div>`;
 					const childrenHTML =
-						`<div class="filter-children">${this.children.map(child => child.render()).join(`\n`)
-							}${this.operator === "NOT" ? `` :
-							`<button onclick="${address}.addChild(''); updateFilterUI();">+ Add</button>`}</div>`;
+						`<div class="filter-children">${this.children.map(child => child.render()).join(
+							`\n`)}${this.operator === "NOT" || (!isAdvancedMode() && this.advancedOnly) ? `` :
+							`<button onclick="${address}.addTextChild(''); updateFilterUI();">+ Add</button>`}</div>`;
 					return `<div class="filter-cell">${infoHTML}\n${childrenHTML}</div>`;
 				}
 			}
@@ -510,7 +645,16 @@ a
 
 		// example usage:
 		const rootFilter = new FilterNode(""); // name "rootFilter" is used in the UI rendering for easy callbacks
-		rootFilter.setOperator("AND") // automatically adds two empty text children
+		rootFilter.setAdvancedOnly(true);
+		rootFilter.setOperator("AND"); // automatically adds one empty text child
+			rootFilter.children[0].setOperator("AND")
+			rootFilter.children[0].addTextChild();
+		rootFilter.addTextChild();
+			rootFilter.children[1].setOperator("OR");
+			rootFilter.children[1].addTextChild();
+		rootFilter.addTextChild();
+			rootFilter.children[2].setOperator("NOR");
+			rootFilter.children[2].addTextChild();
 
 		function updateFilterUI()
 		{
@@ -528,30 +672,41 @@ a
 		const pathElement = document.getElementById('current-path');
 		const dirElement = document.getElementById('directories');
 		const fileElement = document.getElementById('files');
+		let highlightedFile = null;
 
-		function updateUI()
+		function updateExplorerUI()
 		{
 			// Set the path at the top of the page
 			pathElement.textContent = currentDir.getPath() + "/";
 
 			// Set the directory list
-			dirElement.innerHTML = (currentDir.directories.length ? 'Subfolders (click to open):</br>' : '');
+			dirElement.innerHTML = ''; // clear previous list
 			currentDir.directories.forEach((dir, index) =>
 			{
+				const dirText = document.createElement('code');
+				dirText.textContent = dir.name + "\u2002";
+				dirElement.appendChild(dirText);
 				const button = document.createElement('button');
 				button.onclick = (() => dirnav(index));
-				button.innerHTML = dir.name;
+				button.innerHTML = "Open";
 				dirElement.appendChild(button);
 				dirElement.appendChild(document.createElement('br'));
 			});
 
 			// Set the file list
-			fileElement.innerHTML = (currentDir.files.length ? 'Images (click to view):</br>' : '');
+			fileElement.innerHTML = ''; // clear previous list
 			currentDir.files.forEach((file, index) =>
 			{
+				const fileText = document.createElement('code');
+				fileText.textContent = file.name + "\u2002";
+				if (file === highlightedFile)
+				{
+					fileText.classList.add('highlighted');
+				}
+				fileElement.appendChild(fileText);
 				const button = document.createElement('button');
 				button.onclick = (() => filenav(index));
-				button.innerHTML = file.name;
+				button.innerHTML = "View";
 				fileElement.appendChild(button);
 				fileElement.appendChild(document.createElement('br'));
 			});
@@ -567,16 +722,26 @@ a
 			{
 				currentDir = currentDir.directories[index];
 			}
-			updateUI();
+			highlightedFile = null;
+			updateExplorerUI();
 		}
 
 		function showfile(file)
 		{
 				document.getElementById('file-name').textContent = file.name;
 				document.getElementById('file-title').textContent = file.title;
-				document.getElementById('file-tags').textContent = file.tags.join('; ') + (file.tags.length > 0 ? ';' : '');
+				for (const tag of file.tags)
+				{
+					const li = document.createElement('li');
+					li.textContent = tag;
+					document.getElementById('file-tags').appendChild(li);
+				}
 				document.getElementById('file-preview').src = file.getPath();
 				document.getElementById('file-preview').style.display = 'block';
+				document.getElementById('pre-message').style.display = 'none';
+
+				// scroll to the viewer
+				document.getElementById('viewer-box').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 		}
 		
 		function filenav(index)
@@ -596,25 +761,46 @@ a
 			resultsContainer.innerHTML = ''; // clear previous results
 			if (results.length == 0)
 			{
-				resultsContainer.innerHTML = `<p>No results found</p>`;
+				resultsContainer.innerHTML = `<p>No results found in the current folder.</p>
+				<button onclick="currentDir=ROOT; updateExplorerUI(); search()">Search all folders</button>`;
 			}
 			else
 			{
+				// display the result list
 				for (const file of results)
 				{
 					const p = document.createElement('p');
-					const button = document.createElement('button');
-					button.textContent = 'Show';
-					button.onclick = (() => showfile(file));
-					p.appendChild(button);
-					p.appendChild(document.createTextNode(` ${file.name}`));
+					const fileName = document.createElement('code');
+					fileName.textContent = file.name;
+					p.appendChild(fileName);
+					p.appendChild(document.createElement('br'));
+					const button_show = document.createElement('button');
+					button_show.textContent = 'Show Image';
+					button_show.onclick = (() => showfile(file));
+					p.appendChild(button_show);
+					const button_loc = document.createElement('button');
+					button_loc.textContent = 'View in Folder';
+					button_loc.onclick = (() =>
+					{
+						currentDir = file.parent;
+						highlightedFile = file;
+						updateExplorerUI();
+						document.getElementById('explorer-box').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+					});
+					p.appendChild(button_loc);
 					resultsContainer.appendChild(p);
 				}
+
+				// set up the download link for result file paths (stripping the leading "./" from the paths)
+				const resultsDownload = document.getElementById("results-download");
+				const resultPaths = results.map(file => file.getPath().substring(2)).join('\n');
+				resultsDownload.href = 'data:text/plain;charset=utf-8,' + encodeURIComponent(resultPaths);
+				resultsDownload.style.display = 'inline-block';
 			}
 
-			resultsContainer.scrollIntoView({ behavior: 'smooth' });
+			document.getElementById('results-box').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 		}
 
-		updateUI();
+		updateExplorerUI();
 	</script>
 </html>
