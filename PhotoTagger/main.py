@@ -9,7 +9,7 @@ DESCRIPTION:    Provides a user interface for managing and searching titles and
                     in the README. Written for Windows 11.
 
 AUTHOR:         Benjamin Whitsett
-MODIFIED:       Mar. 18, 2025
+MODIFIED:       Mar. 26, 2026
 """
 
 import os
@@ -21,6 +21,7 @@ from PIL import Image
 from tqdm import tqdm
 import winshell
 import shutil
+from pathlib import Path
 
 COMMENT_CHAR = '#'
 DEFAULT_SUGGESTION_FILE = os.path.join(os.path.split(__file__)[0], 'TemplateSuggestions.txt')
@@ -32,6 +33,12 @@ COMPATIBLE_IMAGE_TYPES = {'.jp2', '.j2k', '.jpf', '.jpm', '.jpg2', '.j2c', '.jpc
                           '.tiff', '.tif',
                           '.webp'}
 CONVERSION_DEFAULT = '.jpeg'
+
+HTML_VIEWER_TEMPLATE = os.path.join(os.path.split(__file__)[0], 'html_viewer_template.html')
+DATA_INDICATOR = 'INSERT-FILE-STRUCTURE-HERE'
+COPIED_VIEWER_NAME = 'PHOTO_VIEWER.html'
+VIEWER_TAG_DELIM = '; '
+VIEWER_PATH_SPACER = '\t'
 
 """
 Utility functions
@@ -458,6 +465,73 @@ def searchTitlesAndTags():
     input('\nResults loaded!\nPress Enter to return to the main menu.')
     return
 
+# log the tag info from these files in a copied version of the viewer template
+def createHTMLViewer():
+    # get the source directory
+    clearTerminal()
+    print('Create An HTML Viewer\n')
+    path = cleanPath(inquirer.text('Directory to catalog (may drag/drop)', validate=customDirValidate))
+    
+    # confirm with user if the output file already exists
+    outputPath = os.path.join(path, COPIED_VIEWER_NAME)
+    if os.path.isfile(outputPath):
+        try:
+            confirm = inquirer.confirm(f'This will overwrite the file {COPIED_VIEWER_NAME} in the selected directory. Continue?',
+                                       default=False)
+        except KeyboardInterrupt:
+            return
+        if not confirm:
+            return
+        
+    # collect the list of files to catalog
+    clearTerminal()
+    print('Create An HTML Viewer\n')
+    print('Enumerating...')
+    filePaths = getSubimages(path, strict=True)
+    filePaths = [f for f in filePaths if os.path.splitext(f)[1].lower() in COMPATIBLE_IMAGE_TYPES]
+    
+    # start compiling the file tree
+    print('\nCompiling file tree...')
+    pathParts = [list(Path(f).relative_to(path).parts) for f in filePaths]
+
+    # erase head parts that agree with the previous path
+    # -> left with rows like: ('', '', 'folder1', 'folder2', 'file.jpg')
+    for i in range(len(pathParts) - 1, 0, -1): # exclude 0, since comparing i and i-1
+        j = 0
+        while j < len(pathParts[i]) and j < len(pathParts[i-1]) and pathParts[i][j] == pathParts[i-1][j]:
+            pathParts[i][j] = ''
+            j += 1
+            
+    # add title and tag info to the last path part
+    # -> left with rows like: ('', '', 'folder1', 'folder2', 'file.jpg\tTitle\tTag1; Tag2')
+    for fp, pp in zip(filePaths, pathParts):
+        title, tags = fileHandler.getTitleAndTags(fp)
+        pp[-1] += VIEWER_PATH_SPACER + title + VIEWER_PATH_SPACER + VIEWER_TAG_DELIM.join(tags)
+        
+    # split each nontrivial path part into its own row
+    # -> left with rows like: ('', '', 'folder1') and ('', '', '', '', 'file.jpg\tTitle\tTag1; Tag2')
+    splitParts = []
+    for pp in pathParts:
+        for i in range(len(pp)):
+            if pp[i]: # if this part is not empty
+                splitParts.append(tuple([''] * i + [pp[i]]))
+                
+    # join the rows to a string
+    datastring = '\n'.join([VIEWER_PATH_SPACER.join(row) for row in splitParts])
+    
+    # write the file
+    print('Writing file...')
+    with open(HTML_VIEWER_TEMPLATE, 'r') as fin:
+        template = fin.read()
+    template = template.replace(DATA_INDICATOR, datastring)
+    with open(outputPath, 'w') as fout:
+        fout.write(template)
+        
+    # open the viewer file and report success
+    os.startfile(outputPath)
+    input('\nViewer created!\nPress Enter to return to the main menu.')
+    return
+
 # call git to update the software
 def update():
     clearTerminal()
@@ -482,7 +556,12 @@ if __name__ == '__main__':
             print('Main Menu (use Ctrl+C to return here, Ctrl+Shift+C to copy)')
             print()
             
-            choices = [f'View/Edit Suggestions ({len(suggestions)} currently loaded)', 'Edit Titles And Subjects', 'Search Titles And Subjects', 'Update', 'Exit']
+            choices = [f'View/Edit Suggestions ({len(suggestions)} currently loaded)',
+                       'Edit Titles And Subjects',
+                       'Search Titles And Subjects',
+                       'Create An HTML Viewer',
+                       'Update',
+                       'Exit']
             if lastChoice is None:
                 lastChoice = choices[-1]
             selected = inquirer.list_input('Make a selection with the arrow keys and press Enter',
@@ -496,6 +575,8 @@ if __name__ == '__main__':
             elif selected == choices[2]:
                 searchTitlesAndTags()
             elif selected == choices[3]:
+                createHTMLViewer()
+            elif selected == choices[4]:
                 update()
             else:
                 break

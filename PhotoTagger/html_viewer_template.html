@@ -226,7 +226,7 @@
 			<div id="keyword-box" class="layout-grid-item"
 					style="grid-area: suggestions; height: 30vh; display: none; background-color: hsl(0, 0%, 90%);">
 				<h3>Keyword Suggestions <button onclick="document.getElementById('keyword-box').style.display = 'none';">Hide</button></h3>
-				The following keywords appear in tags of cataloged images, and may be useful for searching:
+				The following keywords appear as subjects of cataloged images, and may be useful for searching:
 				<ul id="keyword-suggestion-list"></ul>
 				
 			</div>
@@ -249,7 +249,7 @@
 				<p><span class="detail-header">File name:</span> <code id="file-name">[select an image]</code></p>
 				<p><span class="detail-header">Title:</span> <span id="file-title"></span></p>
 				<hr>
-				<span class="detail-header">Tags:</span>
+				<span class="detail-header">Subjects:</span>
 				<ul id="file-tags"></ul></br>
 			</div>
 		</div>
@@ -260,24 +260,7 @@
 	<!-- initialization -->
 	<script>
 		DATA_STRING = `
-a
-	b
-		banana.jpg	banana	banana; fruit
-		apple.webp	apple	apple; fruit
-		grapes.jpg	grape vine	grapes; fruit
-	c
-		z
-		y
-		x
-		w
-		v
-		u
-		t
-		s
-		r
-		q
-		p
-	elephant.avif	elephant	elephant; dog
+INSERT-FILE-STRUCTURE-HERE
 			`
 
 		class HierarchyItem

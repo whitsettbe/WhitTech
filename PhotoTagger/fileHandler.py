@@ -9,7 +9,7 @@ DESCRIPTION:    Provides utility functions for interaction with image files'
                     preview process.
 
 AUTHOR:         Benjamin Whitsett
-MODIFIED:       Mar. 18, 2025
+MODIFIED:       Mar. 26, 2026
 """
 
 import pyexiv2
@@ -73,6 +73,20 @@ def checkForKeyword(path, keyword):
 # clean a tag (removing null bytes)
 def tagClean(s):
     return ''.join(filter(lambda c: ord(c) != 0, s))
+
+# get title/tags from a file
+def getTitleAndTags(path):
+    try:
+        im = pyexiv2.Image(path)
+    except: # failed to open
+        return '', []
+    exifData = im.read_exif()
+    title = tagClean(exifData.get(TITLE_LOC, ''))
+    tags = re.split(TAG_DELIM_RE, tagClean(exifData.get(TAG_LOC, '')))
+    if '' in tags:
+        tags.remove('')
+    im.close()
+    return title, tags
 
 # handle the title/tag editing and displaying of a file
 class FileHandler:
