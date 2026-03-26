@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
-    <head>
-        <title>Photo Viewer</title>
+	<head>
+		<title>Photo Viewer</title>
 		<style>
 			#layout-grid {
 				display: grid;
@@ -101,13 +101,27 @@
 				width: 4em;
 			}
 
+			#progress-bar-outer {
+				background-color: white;
+				border: 1px solid black;
+			}
+
+			#progress-bar {
+				background-color: #0F0;
+				white-space: nowrap;
+				overflow: visible;
+				height: 1.5em;
+				padding-top: 0.25em;
+				padding-bottom: 0.25em;
+			}
+
 		</style>
-        <script>
-            
-        
-        </script>
-    </head>
-    <body>
+		<script>
+			
+		
+		</script>
+	</head>
+	<body>
 		<div id="layout-grid">
 			<div class="layout-grid-item"
 					style="grid-area: search; height: 70vh; background-color: hsl(205, 100%, 80%);">
@@ -121,10 +135,11 @@
 				<div id="search-filter">
 					<!-- Search filter UI will go here -->
 				</div>
-				<button onclick="search()">Search in this folder</button>
+				<button id="search-button" onclick="search()">Search in this folder</button>
 				<p>
 					<small>Tip: use "*" to match any number of characters; e.g. "ski*" matches "ski" and "skiing"</small>
 				</p>
+				<div id="progress-bar-outer" style="display: none;"><div id="progress-bar" style="width: 0%"></div></div>
 			</div>
 			<div id="explorer-box" class="layout-grid-item"
 					style="grid-area: explorer; height: 70vh; background-color: hsl(55 100% 80%);">
@@ -135,13 +150,11 @@
 				<span class="detail-header">Subfolders:</span>
 				<div id="directories">
 					<!-- Directory list will be populated here -->
-					<!-- Example: <p><button onclick="dirnav(0)">▼</button>&emsp;Directory Name</p> -->
 				</div>
 				<hr>
 				<span class="detail-header">Image files:</span>
 				<div id="files">
 					<!-- File list will be populated here -->
-					<!-- Example: <p><button onclick="filenav(0)">▣</button>&emsp;File Name</p> -->
 				</div>
 			</div>
 			<div id="keyword-box" class="layout-grid-item"
@@ -152,7 +165,7 @@
 				
 			</div>
 			<div id="results-box" class="layout-grid-item"
-					style="grid-area: results; background-color: hsl(120, 100%, 80%);">
+					style="grid-area: results; height: 85vh; background-color: hsl(120, 100%, 80%);">
 				<h2>Results</h2>
 				<a href="" id="results-download" download="search-result-paths.txt" style="display: none;">Download result file paths</a>
 				<hr>
@@ -175,7 +188,7 @@
 			</div>
 		</div>
 
-    </body>
+	</body>
 	<!-- initialization -->
 	<script>
 		DATA_STRING = `
@@ -197,7 +210,7 @@ a
 		q
 		p
 	elephant.avif	elephant	elephant; dog
-            `
+			`
 
 		class HierarchyItem
 		{
@@ -249,24 +262,42 @@ a
 
 			// find all files in this directory and subdirectories that satisfy the filter node
 			// and return them as a flat list
-			search(filterNode)
+			// (also accepts an asynchronous callback function (file, isGood) => {}) called on each file
+			async search(filterNode, fileCallback = null)
 			{
 				let results = [];
 				
 				for (const file of this.files)
 				{
-					if (filterNode.evaluate(file.title, file.tags))
+					const isGood = filterNode.evaluate(file.title, file.tags);
+					if (fileCallback)
+					{
+						await fileCallback(file, isGood);
+					}
+					if (isGood)
 					{
 						results.push(file);
 					}
+					
 				}
 				
 				for (const dir of this.directories)
 				{
-					results = results.concat(dir.search(filterNode));
+					results = results.concat(await dir.search(filterNode, fileCallback));
 				}
 				
 				return results;
+			}
+
+			// count all files in this directory and subdirectories
+			countAllFiles()
+			{
+				let count = this.files.length;
+				for (const dir of this.directories)
+				{
+					count += dir.countAllFiles();
+				}
+				return count;
 			}
 		}
 
@@ -673,6 +704,10 @@ a
 		const dirElement = document.getElementById('directories');
 		const fileElement = document.getElementById('files');
 		let highlightedFile = null;
+		let progressDenominator = 1;
+		let progressNumerator = 0;
+		let progressResultCount = 0;
+		let progressNextUpdateTime = 0;
 
 		function updateExplorerUI()
 		{
@@ -728,21 +763,21 @@ a
 
 		function showfile(file)
 		{
-				document.getElementById('file-name').textContent = file.name;
-				document.getElementById('file-title').textContent = file.title;
-				document.getElementById('file-tags').innerHTML = ''; // clear previous tags
-				for (const tag of file.tags)
-				{
-					const li = document.createElement('li');
-					li.textContent = tag;
-					document.getElementById('file-tags').appendChild(li);
-				}
-				document.getElementById('file-preview').src = file.getPath();
-				document.getElementById('file-preview').style.display = 'block';
-				document.getElementById('pre-message').style.display = 'none';
+			document.getElementById('file-name').textContent = file.name;
+			document.getElementById('file-title').textContent = file.title;
+			document.getElementById('file-tags').innerHTML = ''; // clear previous tags
+			for (const tag of file.tags)
+			{
+				const li = document.createElement('li');
+				li.textContent = tag;
+				document.getElementById('file-tags').appendChild(li);
+			}
+			document.getElementById('file-preview').src = file.getPath();
+			document.getElementById('file-preview').style.display = 'block';
+			document.getElementById('pre-message').style.display = 'none';
 
-				// scroll to the viewer
-				document.getElementById('viewer-box').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+			// scroll to the viewer
+			document.getElementById('viewer-box').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 		}
 		
 		function filenav(index)
@@ -754,10 +789,50 @@ a
 			}
 		}
 
-		// function to show search results
-		function search()
+		// initialize progress bar
+		function progressInit(denominator)
 		{
-			const results = currentDir.search(rootFilter);
+			progressDenominator = denominator;
+			progressNumerator = 0;
+			progressResultCount = 0;
+			document.getElementById('progress-bar-outer').style.display = 'block';
+			updateProgressBar();
+		}
+
+		// update progress bar
+		function updateProgressBar(increment = 0, resultIncrement = 0)
+		{
+			progressNumerator += increment;
+			progressResultCount += resultIncrement;
+			const percentage = (progressNumerator / progressDenominator) * 100;
+			const progressBar = document.getElementById('progress-bar');
+			progressBar.style.width = percentage + '%';
+			progressBar.textContent = `\u2002Searched ${progressNumerator}/${progressDenominator} (${Math.round(percentage)}%)... (${progressResultCount} results found)`;
+		}
+
+		// function to show search results
+		async function search()
+		{
+			// disable the search button while search is running
+			document.getElementById('search-button').disabled = true;
+
+			// run search, updating the progress bar
+			const searchDir = currentDir;
+			progressInit(searchDir.countAllFiles());
+			document.getElementById('progress-bar').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+			const results = await searchDir.search(rootFilter,
+				async (file, isGood) =>
+				{
+					updateProgressBar(1, isGood ? 1 : 0);
+					if (Date.now() >= progressNextUpdateTime)
+					{
+						progressNextUpdateTime = Date.now() + 100; // update at most every 100ms
+						await new Promise(resolve => setTimeout(resolve, 0)); // yield to update the UI
+					}
+				}
+			);
+
+
 			const resultsContainer = document.getElementById("results-container");
 			resultsContainer.innerHTML = ''; // clear previous results
 			if (results.length == 0)
@@ -769,7 +844,7 @@ a
 				else
 				{
 					resultsContainer.innerHTML = `<p>No results found in the current folder.</p>
-					<p>Currently searching in: <code>${currentDir.getPath()}/</code></p>
+					<p>Currently searching in: <code>${searchDir.getPath()}/</code></p>
 					<button onclick="currentDir=ROOT; updateExplorerUI(); search()">Search all folders</button>`;
 				}
 			}
@@ -800,13 +875,15 @@ a
 					resultsContainer.appendChild(p);
 				}
 
-				// set up the download link for result file paths (stripping the leading "./" from the paths)
+				// set up the download link for result file paths
 				const resultsDownload = document.getElementById("results-download");
-				const resultPaths = results.map(file => file.getPath().substring(2)).join('\n');
+				const resultPaths = results.map(file => file.getPath()).join('\n');
 				resultsDownload.href = 'data:text/plain;charset=utf-8,' + encodeURIComponent(resultPaths);
 				resultsDownload.style.display = 'inline-block';
 			}
 
+			// release the search button and reveal the results
+			document.getElementById('search-button').disabled = false;
 			document.getElementById('results-box').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 		}
 
