@@ -8,9 +8,15 @@ Use: Search by title/subject and view the cataloged images in the folder for whi
 <html>
 	<head>
 		<title>Photo Viewer</title>
+		<meta name="viewport" content="width=device-width, initial-scale=1.0"> 
 		<style>
 
 			/* overall layout */
+
+			body {
+				margin: 24px;
+			}
+
 			#layout-grid {
 				display: grid;
 				grid-template-columns: 1fr 1.5fr 1.5fr 1fr;
@@ -89,6 +95,28 @@ Use: Search by title/subject and view the cataloged images in the folder for whi
 				width: 4em;
 			}
 
+			#search-button {
+				margin-top: 0.5em;
+				margin-bottom: 0.5em;
+			}
+
+			#advanced-toggle-label {
+				font-weight: bold;
+			}
+
+			#advanced-toggle {
+				border-width: 2px;
+				border-radius: 5px;
+				padding: 0.5em;
+			}
+
+			.heavy-button {
+				font-weight: bold;
+				border-width: 2px;
+				border-radius: 5px;
+				padding: 0.5em;
+			}
+
 
 			/* search progress bar */
 			
@@ -110,7 +138,7 @@ Use: Search by title/subject and view the cataloged images in the folder for whi
 
 			#files {
 				display: grid;
-				grid-template-columns: repeat(auto-fit, 13em);
+				grid-template-columns: repeat(auto-fit, 14em);
 			}
 
 			.detail-header {
@@ -126,7 +154,7 @@ Use: Search by title/subject and view the cataloged images in the folder for whi
 
 			.file-with-icon {
 				display: flex;
-				width: 12em;
+				width: 13em;
 				overflow-wrap: anywhere;
 			}
 
@@ -158,6 +186,12 @@ Use: Search by title/subject and view the cataloged images in the folder for whi
 				width: 14em;
 				overflow-wrap: anywhere;
 				margin-bottom: 1em;
+			}
+
+			#keyword-box h3 {
+				display: flex;
+				justify-content: space-between;
+				align-items: center;
 			}
 
 			/* photo viewer */
@@ -198,19 +232,17 @@ Use: Search by title/subject and view the cataloged images in the folder for whi
 			<div class="layout-grid-item"
 					style="grid-area: search; height: 70vh; background-color: hsl(205, 100%, 80%);">
 				<h2>Search Photos</h2>
-				<p class="alert">Not sure what to search for? Click
-					<button onclick="document.getElementById('keyword-box').style.display = 'block';
-							document.getElementById('keyword-box').scrollIntoView({behavior: 'smooth', block: 'nearest' });">here</button>
+				<p class="alert">Not sure what to search for?
+					<button class="heavy-button" onclick="document.getElementById('keyword-box').style.display = 'block';
+							document.getElementById('keyword-box').scrollIntoView({behavior: 'smooth', block: 'nearest' });">Click here</button>
 				to see keyword suggestions.
 				</p>
-				<label><input type="checkbox" id="advanced-toggle" onclick="updateFilterUI()" /> Advanced Mode</label>
+				<label id="advanced-toggle-label"><input type="checkbox" id="advanced-toggle" onclick="updateFilterUI()" /> Advanced mode</label>
 				<div id="search-filter">
 					<!-- Search filter UI will go here -->
 				</div>
-				<button id="search-button" onclick="search()">Search in this folder</button>
-				<p>
-					<small>Tip: use "*" to match any number of characters; e.g. "ski*" matches "ski" and "skiing"</small>
-				</p>
+				<button id="search-button" class="heavy-button" onclick="search()">Search</button>
+				<br><small>Tip: use "*" to match any number of characters; e.g. "ski*" matches "ski" and "skiing"</small>
 				<div id="progress-bar-outer" style="display: none;"><div id="progress-bar" style="width: 0%"></div></div>
 			</div>
 			<div id="explorer-box" class="layout-grid-item"
@@ -230,8 +262,9 @@ Use: Search by title/subject and view the cataloged images in the folder for whi
 				</div>
 			</div>
 			<div id="keyword-box" class="layout-grid-item"
-					style="grid-area: suggestions; height: 30vh; display: none; background-color: hsl(0, 0%, 90%);">
-				<h3>Keyword Suggestions <button onclick="document.getElementById('keyword-box').style.display = 'none';">Hide</button></h3>
+					style="grid-area: suggestions; height: 30vh; display: none; background-color: hsl(0, 0%, 85%);">
+				<h3>Keyword Suggestions <button class="heavy-button"
+					onclick="document.getElementById('keyword-box').style.display = 'none';">Hide</button></h3>
 				The following keywords appear as subjects of cataloged images, and may be useful for searching:
 				<ul id="keyword-suggestion-list"></ul>
 				
@@ -752,14 +785,15 @@ INSERT-FILE-STRUCTURE-HERE
 			dirsElement.innerHTML = ''; // clear previous list
 			currentDir.directories.forEach((dir, index) =>
 			{
-				const dirText = document.createElement('code');
-				dirText.textContent = dir.name + "\u2002";
-				dirsElement.appendChild(dirText);
+				const p = document.createElement('p');
 				const button = document.createElement('button');
 				button.onclick = (() => dirnav(index));
 				button.innerHTML = "Open";
-				dirsElement.appendChild(button);
-				dirsElement.appendChild(document.createElement('br'));
+				p.appendChild(button);
+				const dirText = document.createElement('code');
+				dirText.textContent = "\u2002" + dir.name;
+				p.appendChild(dirText);
+				dirsElement.appendChild(p);
 			});
 
 			// Set the file list
@@ -888,19 +922,20 @@ INSERT-FILE-STRUCTURE-HERE
 
 
 			const resultsContainer = document.getElementById("results-container");
-			resultsContainer.innerHTML = ''; // clear previous results
+			if (currentDir !== ROOT)
+			{
+				resultsContainer.innerHTML =
+					`<p>Currently searching in: <code>${searchDir.getPath()}/</code></p>
+					<button onclick="currentDir=ROOT; updateExplorerUI(); search()">Expand search to all folders</button>
+					<hr>`;
+			}
+			else
+			{
+				resultsContainer.innerHTML = '';
+			}
 			if (results.length == 0)
 			{
-				if (currentDir === ROOT)
-				{
-					resultsContainer.innerHTML = `<p>No results found.</p>`;
-				}
-				else
-				{
-					resultsContainer.innerHTML = `<p>No results found in the current folder.</p>
-					<p>Currently searching in: <code>${searchDir.getPath()}/</code></p>
-					<button onclick="currentDir=ROOT; updateExplorerUI(); search()">Search all folders</button>`;
-				}
+				resultsContainer.innerHTML += `<p>No results found.</p>`;
 			}
 			else
 			{
@@ -931,6 +966,7 @@ INSERT-FILE-STRUCTURE-HERE
 					button_view.textContent = 'View';
 					button_view.onclick = (() => showfile(file));
 					infoBox.appendChild(button_view);
+					infoBox.appendChild(document.createTextNode('\u2002')); // spacer
 					
 					const button_loc = document.createElement('button');
 					button_loc.textContent = 'Open Folder';
