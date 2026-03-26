@@ -54,7 +54,7 @@
 			}
 
 			.filter-info-inner select {
-				font-size: 100%;
+				/*font-size: 100%;*/
 				font-weight: bold;
 			}
 
@@ -129,7 +129,7 @@
 			<div id="explorer-box" class="layout-grid-item"
 					style="grid-area: explorer; height: 70vh; background-color: hsl(55 100% 80%);">
 				<h2>File Explorer</h2>
-				<div><span class="detail-header">Current location:</span>&ensp;<code id="current-path">loading...</code><br>
+				<div><span class="detail-header">Current search location:</span>&ensp;<code id="current-path">loading...</code><br>
 					<button onclick="dirnav(-1)">▲ Back</button></div>
 				<hr>
 				<span class="detail-header">Subfolders:</span>
@@ -162,7 +162,7 @@
 				style="grid-area: viewer; background-color: hsl(0, 0%, 20%);">
 				<img id="file-preview" src="" alt="File preview"
 						style="max-width:100%; max-height:80vh; display:none;">
-				<h2 id="pre-message" style="color: white; text-align: center;">Search for and select an image to view it here.<br><br> You may also find images in the file explorer.</h2>
+				<h2 id="pre-message" style="color: white; text-align: center;">Search for and select an image to view it here.<br><br> You can also find images in the file explorer.</h2>
 			</div>
 			<div class="layout-grid-item" style="grid-area: properties; height: 85vh; background-color: hsl(0, 100%, 80%);">
 				<h3>File Properties</h3>
@@ -730,6 +730,7 @@ a
 		{
 				document.getElementById('file-name').textContent = file.name;
 				document.getElementById('file-title').textContent = file.title;
+				document.getElementById('file-tags').innerHTML = ''; // clear previous tags
 				for (const tag of file.tags)
 				{
 					const li = document.createElement('li');
@@ -761,8 +762,16 @@ a
 			resultsContainer.innerHTML = ''; // clear previous results
 			if (results.length == 0)
 			{
-				resultsContainer.innerHTML = `<p>No results found in the current folder.</p>
-				<button onclick="currentDir=ROOT; updateExplorerUI(); search()">Search all folders</button>`;
+				if (currentDir === ROOT)
+				{
+					resultsContainer.innerHTML = `<p>No results found.</p>`;
+				}
+				else
+				{
+					resultsContainer.innerHTML = `<p>No results found in the current folder.</p>
+					<p>Currently searching in: <code>${currentDir.getPath()}/</code></p>
+					<button onclick="currentDir=ROOT; updateExplorerUI(); search()">Search all folders</button>`;
+				}
 			}
 			else
 			{
