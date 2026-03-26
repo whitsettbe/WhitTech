@@ -3,6 +3,8 @@
 	<head>
 		<title>Photo Viewer</title>
 		<style>
+
+			/* overall layout */
 			#layout-grid {
 				display: grid;
 				grid-template-columns: 1fr 1.5fr 1.5fr 1fr;
@@ -12,6 +14,13 @@
 					"results viewer viewer properties";
 				border: 1px solid black;
 			}
+
+			.alert {
+				color: red;
+				font-weight: bold;
+			}
+
+			/* search filter UI */
 
 			#search-filter {
 				width: max-content;
@@ -70,37 +79,13 @@
 				width: max-content;
 			}
 
-			#keyword-suggestion-list {
-				columns: 3;
-			}
-
-			#viewer-box {
-				display: flex;
-				flex-direction: column;
-				align-items: center;
-				justify-content: center;
-			}
-
-			.alert {
-				color: red;
-				font-weight: bold;
-			}
-
-			.detail-header {
-				font-weight: bold;
-			}
-
-			.highlighted {
-				outline: 0.5em solid gray;
-				margin: 0.5em;
-				display: inline-block;
-				width: max-content;
-			}
-
 			.basic-oplabel {
 				width: 4em;
 			}
 
+
+			/* search progress bar */
+			
 			#progress-bar-outer {
 				background-color: white;
 				border: 1px solid black;
@@ -114,6 +99,87 @@
 				padding-top: 0.25em;
 				padding-bottom: 0.25em;
 			}
+
+			/* general explorer elements */
+
+			#files {
+				display: grid;
+				grid-template-columns: repeat(auto-fit, 13em);
+			}
+
+			.detail-header {
+				font-weight: bold;
+			}
+
+			.highlighted {
+				outline: 0.5em solid gray;
+			}
+
+
+			/* file explorer (and search results) file with icon */
+
+			.file-with-icon {
+				display: flex;
+				width: 12em;
+				overflow-wrap: anywhere;
+			}
+
+			.file-icon-box {
+				width: 3em;
+				min-width: 3em;
+				height: 3em;
+				margin-right: 0.5em;
+				background-color: hsl(0, 0%, 20%);
+
+				display: flex;
+				align-items: center;
+				justify-content: center;
+			}
+
+			.file-icon-box img {
+				max-width: 100%;
+				max-height: 100%;
+			}
+
+			/* keyword suggestion list */
+
+			#keyword-suggestion-list {
+				display: grid;
+				grid-template-columns: repeat(auto-fit, 17em);
+			}
+
+			#keyword-suggestion-list li {
+				width: 14em;
+				overflow-wrap: anywhere;
+				margin-bottom: 1em;
+			}
+
+			/* photo viewer */
+
+			#viewer-box {
+				display: flex;
+				flex-direction: column;
+				align-items: center;
+				justify-content: center;
+				background-color: hsl(0, 0%, 20%);
+			}
+
+			/* image details */
+
+			#file-tags, #file-title, #file-name {
+				max-width: 100%;
+				overflow-wrap: anywhere;
+			}
+
+			/* byline */
+			
+			#byline {
+				font-size: small;
+				text-align: right;
+				color: #444;
+				font-style: italic;
+			}
+
 
 		</style>
 		<script>
@@ -172,7 +238,7 @@
 				<div id="results-container"></div>
 			</div>
 			<div id="viewer-box" class="layout-grid-item"
-				style="grid-area: viewer; background-color: hsl(0, 0%, 20%);">
+				style="grid-area: viewer;">
 				<img id="file-preview" src="" alt="File preview"
 						style="max-width:100%; max-height:80vh; display:none;">
 				<h2 id="pre-message" style="color: white; text-align: center;">Search for and select an image to view it here.<br><br> You can also find images in the file explorer.</h2>
@@ -188,6 +254,8 @@
 			</div>
 		</div>
 
+		<div id="byline">designed by Benjamin Whitsett</div>
+
 	</body>
 	<!-- initialization -->
 	<script>
@@ -196,7 +264,7 @@ a
 	b
 		banana.jpg	banana	banana; fruit
 		apple.webp	apple	apple; fruit
-		grapes.jpg	grape tree	grapes; fruit
+		grapes.jpg	grape vine	grapes; fruit
 	c
 		z
 		y
@@ -701,8 +769,8 @@ a
 	<script>
 		let currentDir = ROOT;
 		const pathElement = document.getElementById('current-path');
-		const dirElement = document.getElementById('directories');
-		const fileElement = document.getElementById('files');
+		const dirsElement = document.getElementById('directories');
+		const filesElement = document.getElementById('files');
 		let highlightedFile = null;
 		let progressDenominator = 1;
 		let progressNumerator = 0;
@@ -715,35 +783,53 @@ a
 			pathElement.textContent = currentDir.getPath() + "/";
 
 			// Set the directory list
-			dirElement.innerHTML = ''; // clear previous list
+			dirsElement.innerHTML = ''; // clear previous list
 			currentDir.directories.forEach((dir, index) =>
 			{
 				const dirText = document.createElement('code');
 				dirText.textContent = dir.name + "\u2002";
-				dirElement.appendChild(dirText);
+				dirsElement.appendChild(dirText);
 				const button = document.createElement('button');
 				button.onclick = (() => dirnav(index));
 				button.innerHTML = "Open";
-				dirElement.appendChild(button);
-				dirElement.appendChild(document.createElement('br'));
+				dirsElement.appendChild(button);
+				dirsElement.appendChild(document.createElement('br'));
 			});
 
 			// Set the file list
-			fileElement.innerHTML = ''; // clear previous list
+			filesElement.innerHTML = ''; // clear previous list
 			currentDir.files.forEach((file, index) =>
 			{
-				const fileText = document.createElement('code');
-				fileText.textContent = file.name + "\u2002";
-				if (file === highlightedFile)
+				const p = document.createElement('p');
+				p.classList.add('file-with-icon');
+				
+				const imgBox = document.createElement('div');
+				imgBox.classList.add('file-icon-box');
+				p.appendChild(imgBox);
+
+				const infoBox = document.createElement('div');
+				p.appendChild(infoBox);
+
+				const img = document.createElement('img');
+				img.src = file.getPath();
+				img.alt = file.name;
+				imgBox.appendChild(img);
+
+				const fileName = document.createElement('code');
+				fileName.textContent = file.name;
+				if (highlightedFile === file)
 				{
-					fileText.classList.add('highlighted');
+					p.classList.add('highlighted');
 				}
-				fileElement.appendChild(fileText);
-				const button = document.createElement('button');
-				button.onclick = (() => filenav(index));
-				button.innerHTML = "View";
-				fileElement.appendChild(button);
-				fileElement.appendChild(document.createElement('br'));
+				infoBox.appendChild(fileName);
+				infoBox.appendChild(document.createElement('br'));
+				
+				const button_view = document.createElement('button');
+				button_view.textContent = 'View';
+				button_view.onclick = (() => showfile(file));
+				infoBox.appendChild(button_view);
+				
+				filesElement.appendChild(p);
 			});
 		}
 
@@ -773,6 +859,7 @@ a
 				document.getElementById('file-tags').appendChild(li);
 			}
 			document.getElementById('file-preview').src = file.getPath();
+			document.getElementById('file-preview').alt = file.name;
 			document.getElementById('file-preview').style.display = 'block';
 			document.getElementById('pre-message').style.display = 'none';
 
@@ -831,6 +918,7 @@ a
 					}
 				}
 			);
+			await new Promise(resolve => setTimeout(resolve, 0)); // ensure UI updates after search completion
 
 
 			const resultsContainer = document.getElementById("results-container");
@@ -854,16 +942,32 @@ a
 				for (const file of results)
 				{
 					const p = document.createElement('p');
+					p.classList.add('file-with-icon');
+					
+					const imgBox = document.createElement('div');
+					imgBox.classList.add('file-icon-box');
+					p.appendChild(imgBox);
+
+					const infoBox = document.createElement('div');
+					p.appendChild(infoBox);
+
+					const img = document.createElement('img');
+					img.src = file.getPath();
+					img.alt = file.name;
+					imgBox.appendChild(img);
+
 					const fileName = document.createElement('code');
 					fileName.textContent = file.name;
-					p.appendChild(fileName);
-					p.appendChild(document.createElement('br'));
-					const button_show = document.createElement('button');
-					button_show.textContent = 'Show Image';
-					button_show.onclick = (() => showfile(file));
-					p.appendChild(button_show);
+					infoBox.appendChild(fileName);
+					infoBox.appendChild(document.createElement('br'));
+					
+					const button_view = document.createElement('button');
+					button_view.textContent = 'View';
+					button_view.onclick = (() => showfile(file));
+					infoBox.appendChild(button_view);
+					
 					const button_loc = document.createElement('button');
-					button_loc.textContent = 'View in Folder';
+					button_loc.textContent = 'Open Folder';
 					button_loc.onclick = (() =>
 					{
 						currentDir = file.parent;
@@ -871,7 +975,8 @@ a
 						updateExplorerUI();
 						document.getElementById('explorer-box').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 					});
-					p.appendChild(button_loc);
+					infoBox.appendChild(button_loc);
+					
 					resultsContainer.appendChild(p);
 				}
 
