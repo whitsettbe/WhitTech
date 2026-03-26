@@ -18,7 +18,7 @@ COMPATIBILITY:      This program was tested on Windows 11 with Python 3.11.4.
 AUTHORS:            Benjamin Whitsett
                     whitsettbe@gmail.com
 
-MODIFIED:           Mar. 25, 2025
+MODIFIED:           Mar. 26, 2026
 
 
 PURPOSE:            This program allows for easy modification of title and
@@ -44,6 +44,11 @@ PURPOSE:            This program allows for easy modification of title and
                     Search results can generate either a folder of shortcuts
                     (very small, but hard to use) or a folder of actual
                     file copies.
+
+                    An HTML image view/search tool can be created from the
+                    tag information in a given folder's images. This HTML
+                    file is then stored in the relevant folder and can be
+                    easily ported with the stored images.
 
 ERRORS:             Should the program crash unexpectedly, contact the
                         developer with any questions.

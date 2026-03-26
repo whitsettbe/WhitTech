@@ -1,4 +1,10 @@
 <!DOCTYPE html>
+<!--
+Name: Photo Viewer
+Author: Benjamin Whitsett
+Last Modified: 2026-03-26
+Use: Search by title/subject and view the cataloged images in the folder for which this program was compiled.
+-->
 <html>
 	<head>
 		<title>Photo Viewer</title>
@@ -465,8 +471,8 @@ INSERT-FILE-STRUCTURE-HERE
 			// (returns self)
 			setText(text)
 			{
-				// override if resetting an operator - inherit from its child
-				if (this.operator && this.children.length > 0)
+				// override if resetting an operator with text child - inherit from its child
+				if (this.operator && this.children.length > 0 && this.children[0].isText())
 				{
 					text = this.children[0].text;
 				}
@@ -478,52 +484,32 @@ INSERT-FILE-STRUCTURE-HERE
 			}
 
 			// sets the operator of this node and clears its text (i.e. makes it a non-leaf)
-			// (automatically adds child if there are none, and restricts to one child if operator is 'NOT')
+			// (automatically adds a child if there are none)
 			setOperator(operator = "AND")
 			{
-				if (operator !== "AND" && operator !== "OR" && operator !== "NOT" && operator != "NOR")
+				if (operator !== "AND" && operator !== "OR" && operator != "NOR")
 				{
 					throw new Error("Invalid operator: " + operator);
 				}
 
 				let oldText = this.text || "";
 				this.text = null;
-				this.operator = operator; // e.g. 'AND', 'OR', 'NOT', 'NOR'
-				if (operator === "NOT")
+				this.operator = operator; // e.g. 'AND', 'OR', 'NOR'
+				if (this.children.length == 0)
 				{
-					if (this.children.length > 1)
-					{
-						this.children = [this.children[0]];
-					}
-					else if (this.children.length == 0)
-					{
-						this.children.push(new FilterNode(this));
-						this.children[0].setText(oldText);
-					}
-				}
-				else
-				{
-					if (this.children.length == 0)
-					{
-						this.children.push(new FilterNode(this));
-						this.children[0].setText(oldText);
-					}
+					this.children.push(new FilterNode(this));
+					this.children[0].setText(oldText);
 				}
 
 				return this;
 			}
 
 			// adds a child node with the given text and returns it (requires not a text node)
-			// (restricted to one child if operator is 'NOT')
 			addTextChild(text = "")
 			{
 				if (this.isText())
 				{
 					throw new Error("Cannot add child to a text node");
-				}
-				if (this.operator === "NOT" && this.children.length >= 1)
-				{
-					throw new Error("Cannot add more than one child to a NOT node");
 				}
 				const child = new FilterNode(this, text);
 				this.children.push(child);
@@ -597,6 +583,7 @@ INSERT-FILE-STRUCTURE-HERE
 					const titleKeywords = processor(title);
 					const tagKeywords = tags.map(processor);
 					const allKeygroups = [titleKeywords, ...tagKeywords];
+					console.log(filterKeywords, allKeygroups);
 
 					// loop through keyword groups and find one containing all filter keywords
 					if (filterKeywords.length === 0)
@@ -605,9 +592,11 @@ INSERT-FILE-STRUCTURE-HERE
 					}
 					else
 					{
+						// there must exist a group of keywords (from title or a tag)
+						// such that every keyword in the filter text matches something in that group
 						result = allKeygroups.some(group => filterKeywords.every(
-								keyword => RegExp(`^${keyword.replaceAll('*', '.*')}$`).test(group)
-							)) ? 1 : 0;
+								keyword => group.some(word => RegExp(`^${keyword.replaceAll('*', '.*')}$`).test(word)
+							))) ? 1 : 0;
 					}
 				}
 				else
@@ -628,7 +617,7 @@ INSERT-FILE-STRUCTURE-HERE
 							}
 						}
 					}
-					else if (this.operator === "OR" || this.operator === "NOR") // supremum of children's results (shortcut at 1)
+					else // OR or NOR: supremum (or flipped-supremum) of children's results (shortcut at 1)
 					{
 						result = 0;
 						for (const child of this.children)
@@ -649,10 +638,6 @@ INSERT-FILE-STRUCTURE-HERE
 						{
 							result = 1 - result;
 						}
-					}
-					else if (this.operator === "NOT") // complement of the child result
-					{
-						result = 1 - this.children[0].evaluate(title, tags, false);
 					}
 				}
 
@@ -702,7 +687,7 @@ INSERT-FILE-STRUCTURE-HERE
 				{
 					const operatorSelect = !isAdvancedMode() ?
 					`<div class="basic-oplabel">${
-						{"AND": "All of", "OR": "Any of", "NOR": "None of", "NOT": "Not"}[this.operator]}</div>`
+						{"AND": "All of", "OR": "Any of", "NOR": "None of"}[this.operator]}</div>`
 					:
 					`<select name="logic" onchange="${
 						address}.setOperator(this.value); updateFilterUI();">
@@ -710,14 +695,13 @@ INSERT-FILE-STRUCTURE-HERE
 						<option value="OR" ${this.operator === "OR" ? "selected" : ""}>Any of</option>
 						<option value="NOR" ${this.operator === "NOR" ? "selected" : ""}>None of</option>
 					</select>`;
-						// <option value="NOT" ${this.operator === "NOT" ? "selected" : ""}>Not</option>
 					const infoHTML = !isAdvancedMode() && this.advancedOnly ? `` :
 					`<div class="filter-info-outer">
 						<div class="filter-info-inner">${modeChoice}${operatorSelect}</div>
 					</div>`;
 					const childrenHTML =
 						`<div class="filter-children">${this.children.map(child => child.render()).join(
-							`\n`)}${this.operator === "NOT" || (!isAdvancedMode() && this.advancedOnly) ? `` :
+							`\n`)}${!isAdvancedMode() && this.advancedOnly ? `` :
 							`<button onclick="${address}.addTextChild(''); updateFilterUI();">+ Add</button>`}</div>`;
 					return `<div class="filter-cell">${infoHTML}\n${childrenHTML}</div>`;
 				}
@@ -743,7 +727,6 @@ INSERT-FILE-STRUCTURE-HERE
 			document.getElementById("search-filter").innerHTML = rootFilter.render();
 		}
 		updateFilterUI();
-		console.log("Double-check the pattern-matching logic against the used keywords!")
 
 
 	</script>
