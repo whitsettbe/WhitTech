@@ -491,12 +491,13 @@ def createHTMLViewer():
     filePaths = [f for f in filePaths if os.path.splitext(f)[1].lower() in COMPATIBLE_IMAGE_TYPES]
     
     # start compiling the file tree
-    print('\nCompiling file tree...')
-    pathParts = [list(Path(f).relative_to(path).parts) for f in filePaths]
+    print('\nParsing file tree...')
+    pathParts = [list(Path(f).relative_to(path).parts) for f in tqdm(filePaths)]
 
     # erase head parts that agree with the previous path
     # -> left with rows like: ('', '', 'folder1', 'folder2', 'file.jpg')
-    for i in range(len(pathParts) - 1, 0, -1): # exclude 0, since comparing i and i-1
+    print('Simplifying paths...')
+    for i in tqdm(list(range(len(pathParts) - 1, 0, -1))): # exclude 0, since comparing i and i-1
         j = 0
         while j < len(pathParts[i]) and j < len(pathParts[i-1]) and pathParts[i][j] == pathParts[i-1][j]:
             pathParts[i][j] = ''
@@ -504,14 +505,16 @@ def createHTMLViewer():
             
     # add title and tag info to the last path part
     # -> left with rows like: ('', '', 'folder1', 'folder2', 'file.jpg\tTitle\tTag1; Tag2')
-    for fp, pp in zip(filePaths, pathParts):
+    print('Adding title and tag info...')
+    for fp, pp in tqdm(list(zip(filePaths, pathParts))):
         title, tags = fileHandler.getTitleAndTags(fp)
         pp[-1] += VIEWER_PATH_SPACER + title + VIEWER_PATH_SPACER + VIEWER_TAG_DELIM.join(tags)
         
     # split each nontrivial path part into its own row
     # -> left with rows like: ('', '', 'folder1') and ('', '', '', '', 'file.jpg\tTitle\tTag1; Tag2')
+    print('Splitting hierarchy...')
     splitParts = []
-    for pp in pathParts:
+    for pp in tqdm(pathParts):
         for i in range(len(pp)):
             if pp[i]: # if this part is not empty
                 splitParts.append(tuple([''] * i + [pp[i]]))
