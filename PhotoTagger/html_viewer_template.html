@@ -428,21 +428,30 @@ INSERT-FILE-STRUCTURE-HERE
 		console.log(ROOT);
 
 		// get a list of all file tags in the hierarchy
-		function getAllTags(directory = ROOT, tags = new Set())
+		const IGNORED_SUGG_EXPR = /[?]/g; // matches each time ? appears
+		function getAllTags(directory = ROOT, tags = new Set(), doIgnore = false)
 		{
 			// add tags from files in this directory
 			for (const file of directory.files)
 			{
 				for (const tag of file.tags)
 				{
-					tags.add(tag);
+					if (doIgnore)
+					{
+						console.log(tag, tag.replace(IGNORED_SUGG_EXPR, ''));
+						tags.add(tag.replace(IGNORED_SUGG_EXPR, '')); // remove ignored characters from suggestions	
+					}
+					else
+					{
+						tags.add(tag);
+					}
 				}
 			}
 
 			// recursively collect tags from subdirectories
 			for (const dir of directory.directories)
 			{
-				getAllTags(dir, tags);
+				getAllTags(dir, tags, doIgnore);
 			}
 
 			// convert set to sorted array and return
@@ -456,8 +465,8 @@ INSERT-FILE-STRUCTURE-HERE
 			}
 		}
 
-		// load tags into the keyword suggestions box
-		const allTags = getAllTags();
+		// load tags into the keyword suggestions box (ignoring specified characters)
+		const allTags = getAllTags(undefined, undefined, doIgnore = true); // defaults need explicit placeholders in JS :(
 		const suggestionList = document.getElementById("keyword-suggestion-list");
 		for (const tag of allTags)
 		{
@@ -975,6 +984,10 @@ INSERT-FILE-STRUCTURE-HERE
 						highlightedFile = file;
 						updateExplorerUI();
 						document.getElementById('explorer-box').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+						setTimeout(() =>
+						{
+							document.querySelector('#files .highlighted').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+						}, 100);
 					});
 					infoBox.appendChild(button_loc);
 					
